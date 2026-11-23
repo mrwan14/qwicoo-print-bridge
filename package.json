@@ -48,7 +48,8 @@
       {
         "provider": "github",
         "owner": "mrwan14",
-        "repo": "qwicoo-print-bridge"
+        "repo": "qwicoo-print-bridge",
+        "releaseType": "release"
       }
     ]
   },
