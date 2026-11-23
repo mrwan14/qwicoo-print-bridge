@@ -53,6 +53,9 @@ export function rasterImage(image: MonoImage, bandRows = 256): Uint8Array {
 
 /** Everything the printer needs for one ticket. */
 export function ticketBytes(image: MonoImage): Uint8Array {
+  // A ticket always has ink (at least the table or pickup number). An empty image means drawing
+  // failed: throw so the ticket stays queued (and staff get alerted) instead of printing blank paper.
+  if (image.widthBytes === 0 || image.height === 0 || !image.bits.some((byte) => byte !== 0)) throw new Error("BLANK_TICKET");
   return concat([INIT, rasterImage(image), FEED, CUT]);
 }
 

@@ -34,6 +34,11 @@ describe("ESC/POS commands", () => {
     expect([...bytes.slice(-4)]).toEqual([...CUT]);
   });
 
+  it("refuses a blank ticket so it is never sent or marked printed", () => {
+    expect(() => ticketBytes({ widthBytes: 0, height: 0, bits: new Uint8Array(0) })).toThrow("BLANK_TICKET");
+    expect(() => ticketBytes({ widthBytes: 72, height: 16, bits: new Uint8Array(72 * 16) })).toThrow("BLANK_TICKET");
+  });
+
   it("asks for printer, offline-cause and paper status", () => {
     expect(STATUS_QUERIES.map((q) => [...q])).toEqual([
       [0x10, 0x04, 0x01],

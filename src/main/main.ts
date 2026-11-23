@@ -8,6 +8,10 @@ import { PrintService, type AppState } from "./service";
 import { WindowsSpoolerTransport } from "./transports/windows-spooler";
 import { startUpdater } from "./updater";
 
+// Tickets are drawn in an offscreen window; with GPU compositing its capturePage comes back empty
+// (seen on macOS), which would print blank tickets. Software rendering is plenty for this app.
+app.disableHardwareAcceleration();
+
 if (!app.requestSingleInstanceLock()) app.quit();
 
 const sealer: Sealer = {
