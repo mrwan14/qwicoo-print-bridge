@@ -1,7 +1,7 @@
 {
   "name": "qwicoo-print-bridge",
   "productName": "Qwicoo Print",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Prints Qwicoo kitchen tickets straight to the restaurant's thermal printer.",
   "main": "dist/main/main.js",
   "private": true,
@@ -13,7 +13,9 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dist:win": "npm run build && electron-builder --win nsis --x64 --publish never",
-    "release:win": "npm run build && electron-builder --win nsis --x64 --publish always"
+    "release:win": "npm run build && electron-builder --win nsis --x64 --publish always",
+    "dist:mac": "npm run build && electron-builder --mac dmg --arm64 --publish never",
+    "virtual-printer": "node scripts/virtual-printer.mjs"
   },
   "build": {
     "appId": "com.qwicoo.printbridge",
@@ -27,6 +29,7 @@
       "output": "release",
       "buildResources": "build"
     },
+    "afterPack": "scripts/adhoc-sign.cjs",
     "win": {
       "target": [
         {
@@ -43,6 +46,21 @@
       "perMachine": false,
       "runAfterFinish": true,
       "artifactName": "Qwicoo-Print-Setup-${version}.exe"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png",
+      "category": "public.app-category.business",
+      "identity": null,
+      "artifactName": "Qwicoo-Print-${version}-${arch}.${ext}"
     },
     "publish": [
       {

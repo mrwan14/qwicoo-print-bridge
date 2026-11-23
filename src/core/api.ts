@@ -71,12 +71,15 @@ export class HttpBridgeApi implements BridgeApi {
   }
 }
 
+/** What the device list in Qwicoo shows this app as. */
+export type DeviceKind = "WINDOWS" | "MACOS" | "ANDROID";
+
 /** Exchange a one-time pairing code for this device's token. Throws with the API code on failure. */
-export async function pairDevice(baseUrl: string, code: string, name: string, fetcher: typeof fetch = fetch): Promise<DeviceSession> {
+export async function pairDevice(baseUrl: string, code: string, name: string, kind: DeviceKind, fetcher: typeof fetch = fetch): Promise<DeviceSession> {
   const response = await fetcher(`${baseUrl}/kitchen-printer/pair`, {
     method: "POST",
     headers: { accept: "application/json", "content-type": "application/json" },
-    body: JSON.stringify({ code, name, kind: "WINDOWS" }),
+    body: JSON.stringify({ code, name, kind }),
   });
   if (!response.ok) throw new Error(await codeOf(response));
   const body = (await response.json()) as { device_id: string; token: string; branch_name: string; ticket_width_mm: number };

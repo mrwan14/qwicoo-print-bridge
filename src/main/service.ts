@@ -7,6 +7,7 @@ import type { ConfigStore, PrinterConfig } from "./config";
 import type { Log } from "./log";
 import { ticketToBytes } from "./render";
 import { NetworkTransport } from "./transports/network";
+import { CupsTransport } from "./transports/cups";
 import { WindowsSpoolerTransport } from "./transports/windows-spooler";
 
 const POLL_MS = 3000;
@@ -22,8 +23,17 @@ export type AppState = {
   loop: BridgeState | null;
 };
 
-export function transportFor(printer: PrinterConfig): PrinterTransport {
-  return printer.type === "network" ? new NetworkTransport(printer.host, printer.port) : new WindowsSpoolerTransport(printer.name);
+/** USB printers go through the OS print system: the Windows spooler, or CUPS on macOS. */
+export function transportFor(printer: PrinterConfig, platform: NodeJS.Platform = process.platform): PrinterTransport {
+  if (printer.type === "network") return new NetworkTransport(printer.host, printer.port);
+  return platform === "win32" ? new WindowsSpoolerTransport(printer.name) : new CupsTransport(printer.name);
+}
+
+/** Printers the OS knows about, for the USB picker. */
+export function listUsbPrinters(platform: NodeJS.Platform = process.platform): Promise<string[]> {
+  if (platform === "win32") return WindowsSpoolerTransport.list();
+  if (platform === "darwin") return CupsTransport.list();
+  return Promise.resolve([]);
 }
 
 function testTicket(locale: "en" | "ar"): KitchenTicket {
@@ -124,7 +134,7 @@ export class PrintService {
   }
 
   async pair(code: string, name: string): Promise<void> {
-    const session = await pairDevice(this.config.value.apiBase, code.trim(), name.trim() || "Kitchen PC");
+    const session = await pairDevice(this.config.value.apiBase, code.trim(), name.trim() || "Kitchen PC", process.platform === "darwin" ? "MACOS" : "WINDOWS");
     this.config.setDevice(session);
     this.log.info(`paired as device ${session.deviceId} for ${session.branchName}`);
     await this.start();

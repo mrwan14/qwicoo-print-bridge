@@ -1,6 +1,6 @@
 # Qwicoo Print (print bridge)
 
-A small Windows app that prints Qwicoo kitchen tickets straight to the restaurant's thermal printer
+A small Windows app (with a macOS build for testing) that prints Qwicoo kitchen tickets straight to the restaurant's thermal printer
 (network or USB), with no browser, no print dialog and no one signed in. It reports the printer's
 status (out of paper, cover open, offline) so cashiers get an alert. Spec and plan live in the
 backend repo: `docs/specs/print-bridge.md`, `docs/plans/print-bridge.md`.
@@ -16,8 +16,8 @@ backend repo: `docs/specs/print-bridge.md`, `docs/plans/print-bridge.md`.
 ## Layout
 - `src/core/`: no Electron: ESC/POS encoding, status parsing, image → raster, API client, print loop,
   ticket layout (copied from the frontend). Reusable by an Android app later.
-- `src/main/`: Electron main process: ticket rendering, network (TCP 9100) and USB (Windows
-  spooler, RAW) transports, config, logs, tray, auto-update.
+- `src/main/`: Electron main process: ticket rendering, network (TCP 9100) and USB transports
+  (Windows spooler RAW; CUPS `lp -o raw` on macOS), config, logs, tray, auto-update (Windows only).
 - `src/renderer/`: the setup/status window (plain HTML/TS, Arabic + English).
 - `test/`: Vitest, including a fake network printer that can run out of paper.
 
@@ -29,8 +29,23 @@ npm start                # run the app (unset ELECTRON_RUN_AS_NODE if your termi
 npx electron scripts/render-sample.cjs   # writes sample tickets to ./samples
 python3 scripts/decode-bin.py samples/ticket-ar-80.bin out.png   # what the printer would print
 npm run dist:win         # Windows installer in ./release (unsigned)
+npm run dist:mac         # macOS .dmg (Apple Silicon) in ./release, ad-hoc signed, for testing
+npm run virtual-printer  # pretend network printer on 127.0.0.1:9100; each ticket opens as a PNG
 ```
 API base defaults to `https://api.qwicoo.com/api/v1`; override with `QWICOO_API_URL`.
+
+## Test on a Mac without a printer
+1. `npm run virtual-printer` and leave it running (keys: `p` paper out, `c` cover open, `o` offline, `r` ready).
+2. `npm run dist:mac`, open `release/Qwicoo-Print-<version>-arm64.dmg`, drag the app to Applications.
+3. To use a local backend, start the app from Terminal the first time; the server is saved when you pair:
+   `QWICOO_API_URL=http://localhost:8010/api/v1 "/Applications/Qwicoo Print.app/Contents/MacOS/Qwicoo Print"`
+   (To go back to production later, delete `~/Library/Application Support/Qwicoo Print/config.json`.)
+4. In that window, pair with a code from Branch settings → Kitchen & printing, choose **Network printer**, IP `127.0.0.1`, port `9100`.
+5. Place an order: the ticket opens as an image. Press `p` in the virtual printer and Qwicoo alerts staff after ~30 s.
+
+A real USB printer on a Mac: add it in System Settings → Printers & Scanners (any driver, e.g. "Generic"),
+then pick it under **USB printer**. The Mac build is unsigned by Apple and doesn't auto-update; it's for
+testing until we buy an Apple Developer ID.
 
 ## Release
 Tag `vX.Y.Z` on main: CI builds the installer and publishes it to GitHub Releases. Installed apps check

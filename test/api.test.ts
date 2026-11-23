@@ -40,15 +40,28 @@ describe("backend client", () => {
       "https://x/api/v1",
       "kq7m-3xpa",
       "Kitchen PC",
+      "WINDOWS",
       fakeFetch({ "POST /api/v1/kitchen-printer/pair": { status: 201, body: { device_id: "d9", token: "qpd_d9_s", branch_id: "b", branch_name: "Zamalek", ticket_width_mm: 80 } } }, seen),
     );
     expect(session).toEqual({ deviceId: "d9", token: "qpd_d9_s", branchName: "Zamalek", width: 80 });
     expect(JSON.parse(String(seen[0].init.body))).toEqual({ code: "kq7m-3xpa", name: "Kitchen PC", kind: "WINDOWS" });
   });
 
+  it("a Mac pairs as MACOS", async () => {
+    const seen: { url: string; init: RequestInit }[] = [];
+    await pairDevice(
+      "https://x/api/v1",
+      "kq7m-3xpa",
+      "Office Mac",
+      "MACOS",
+      fakeFetch({ "POST /api/v1/kitchen-printer/pair": { status: 201, body: { device_id: "d9", token: "qpd_d9_s", branch_id: "b", branch_name: "Zamalek", ticket_width_mm: 58 } } }, seen),
+    );
+    expect(JSON.parse(String(seen[0].init.body)).kind).toBe("MACOS");
+  });
+
   it("a wrong code is a readable error", async () => {
     await expect(
-      pairDevice("https://x/api/v1", "nope", "PC", fakeFetch({ "POST /api/v1/kitchen-printer/pair": { status: 400, body: { code: "PAIRING_CODE_INVALID" } } }, [])),
+      pairDevice("https://x/api/v1", "nope", "PC", "WINDOWS", fakeFetch({ "POST /api/v1/kitchen-printer/pair": { status: 400, body: { code: "PAIRING_CODE_INVALID" } } }, [])),
     ).rejects.toThrow("PAIRING_CODE_INVALID");
   });
 });
