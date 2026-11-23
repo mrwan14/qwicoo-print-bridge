@@ -1,0 +1,65 @@
+{
+  "name": "qwicoo-print-bridge",
+  "productName": "Qwicoo Print",
+  "version": "0.1.0",
+  "description": "Prints Qwicoo kitchen tickets straight to the restaurant's thermal printer.",
+  "main": "dist/main/main.js",
+  "private": true,
+  "license": "UNLICENSED",
+  "author": "Qwicoo",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-renderer.mjs",
+    "start": "npm run build && electron .",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dist:win": "npm run build && electron-builder --win nsis --x64 --publish never",
+    "release:win": "npm run build && electron-builder --win nsis --x64 --publish always"
+  },
+  "build": {
+    "appId": "com.qwicoo.printbridge",
+    "productName": "Qwicoo Print",
+    "files": [
+      "dist/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "artifactName": "Qwicoo-Print-Setup-${version}.exe"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "mrwan14",
+        "repo": "qwicoo-print-bridge"
+      }
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "typescript": "5.6",
+    "vitest": "2.1"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  }
+}
