@@ -4,10 +4,16 @@ import { BrowserWindow, Menu, Tray, app, clipboard, ipcMain, nativeImage, safeSt
 
 import { ConfigStore, type PrinterConfig, type Sealer } from "./config";
 import { Log } from "./log";
-import { PrintService, type AppState } from "./service";
-import { WindowsSpoolerTransport } from "./transports/windows-spooler";
+import { PrintService, listUsbPrinters, type AppState } from "./service";
+import { validCupsName } from "./transports/cups";
 import { startUpdater } from "./updater";
 
+// Tickets are drawn in an offscreen window; with GPU compositing its capturePage comes back empty
+// (seen on macOS), which would print blank tickets. Software rendering is plenty for this app.
+app.disableHardwareAcceleration();
+
+// Test runs can keep their pairing and logs apart from the installed app.
+if (process.env.QWICOO_USER_DATA) app.setPath("userData", process.env.QWICOO_USER_DATA);
 if (!app.requestSingleInstanceLock()) app.quit();
 
 const sealer: Sealer = {
@@ -28,7 +34,10 @@ function validPrinter(value: unknown): PrinterConfig {
     const port = Number(p.port ?? 9100);
     if (Number.isInteger(port) && port > 0 && port < 65536) return { type: "network", host: p.host.trim(), port };
   }
-  if (p?.type === "usb" && typeof p.name === "string" && p.name.trim().length > 0 && p.name.length < 256) return { type: "usb", name: p.name };
+  if (p?.type === "usb" && typeof p.name === "string" && p.name.trim().length > 0 && p.name.length < 256) {
+    if (process.platform !== "win32" && !validCupsName(p.name)) throw new Error("INVALID_PRINTER");
+    return { type: "usb", name: p.name };
+  }
   throw new Error("INVALID_PRINTER");
 }
 
@@ -87,6 +96,8 @@ function broadcast(state: AppState): void {
 }
 
 app.on("second-instance", () => showWindow());
+// macOS: clicking the Dock icon reopens the window.
+app.on("activate", () => showWindow());
 
 app.whenReady().then(async () => {
   log = new Log(path.join(app.getPath("userData"), "logs"));
@@ -94,12 +105,12 @@ app.whenReady().then(async () => {
   service = new PrintService(config, log, app.getVersion(), broadcast);
   log.info(`Qwicoo Print ${app.getVersion()} starting`);
 
-  // Start with Windows, hidden in the tray.
-  if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: true, args: ["--hidden"] });
+  // Start with the computer, hidden in the tray (Windows passes --hidden; macOS opens as hidden).
+  if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true, args: ["--hidden"] });
 
   ipcMain.handle("state", () => service.state());
   ipcMain.handle("pair", (_e, code: string, name: string) => service.pair(String(code), String(name)));
-  ipcMain.handle("usb-printers", () => (process.platform === "win32" ? WindowsSpoolerTransport.list() : Promise.resolve([])));
+  ipcMain.handle("usb-printers", () => listUsbPrinters());
   ipcMain.handle("check-printer", (_e, printer: unknown) => service.checkPrinter(validPrinter(printer)));
   ipcMain.handle("set-printer", (_e, printer: unknown) => service.setPrinter(validPrinter(printer)));
   ipcMain.handle("test-print", (_e, printer?: unknown) => service.testPrint(printer ? validPrinter(printer) : undefined));
@@ -127,8 +138,10 @@ app.whenReady().then(async () => {
 
   await service.start();
   const s = service.state();
-  if (!process.argv.includes("--hidden") || !s.paired || !s.printer) showWindow();
-  if (app.isPackaged) startUpdater(log, () => service.idle);
+  const hidden = process.argv.includes("--hidden") || (process.platform === "darwin" && app.getLoginItemSettings().wasOpenedAsHidden);
+  if (!hidden || !s.paired || !s.printer) showWindow();
+  // macOS auto-update needs a signed app; the Mac build is for testing until we have an Apple certificate.
+  if (app.isPackaged && process.platform === "win32") startUpdater(log, () => service.idle);
 });
 
 app.on("before-quit", () => {
