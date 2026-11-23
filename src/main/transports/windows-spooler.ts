@@ -15,6 +15,11 @@ type Deps = {
   removeTemp?: (file: string) => Promise<void>;
 };
 
+/** WQL string literal escaping: backslash before backslashes and quotes. */
+export function wqlEscape(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll("'", "\\'");
+}
+
 /** Single-quoted PowerShell string: nothing inside is expanded, a quote is doubled. */
 export function psQuote(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
@@ -133,7 +138,7 @@ export class WindowsSpoolerTransport implements PrinterTransport {
   async status(): Promise<PrinterStatus> {
     try {
       const out = await this.run(
-        `Get-CimInstance Win32_Printer -Filter ${psQuote(`Name='${this.printerName.replaceAll("'", "''")}'`)} | ` +
+        `Get-CimInstance Win32_Printer -Filter ${psQuote(`Name='${wqlEscape(this.printerName)}'`)} | ` +
           "Select-Object WorkOffline, PrinterStatus, DetectedErrorState | ConvertTo-Json -Compress",
       );
       if (!out) return "OFFLINE";

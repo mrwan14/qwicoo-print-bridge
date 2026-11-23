@@ -66,3 +66,12 @@ describe("Windows spooler (USB printers)", () => {
     expect(await WindowsSpoolerTransport.list(fakeRunner('{"Name":"Only one"}'))).toEqual(["Only one"]);
   });
 });
+
+describe("printer names with quotes", () => {
+  it("escapes the WMI filter for names with an apostrophe", async () => {
+    const seen: string[] = [];
+    const transport = new WindowsSpoolerTransport("Kitchen's XP-80", { run: fakeRunner('{"PrinterStatus":3}', seen) });
+    expect(await transport.status()).toBe("READY");
+    expect(seen[0]).toContain("-Filter 'Name=''Kitchen\\''s XP-80'''");
+  });
+});
